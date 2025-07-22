@@ -132,11 +132,14 @@ class ParameterRequestManager:
     def export_to_csv(self):
         """Export collected payloads to a CSV file.
 
-        Writes a single row of payloads separated by semicolons to 'parameter_data.csv'.
-        @throws Exception: If CSV file writing fails.
+        Writes a single row of payloads separated by semicolons to 'C:\\temp\\parameter_data.csv'.
+        Creates the 'C:\\temp' directory if it does not exist.
+        @throws Exception: If CSV file writing fails or the directory is inaccessible.
         """
-        csv_file = 'parameter_data.csv'
+        csv_file = r'C:\temp\parameter_data.csv'
         try:
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(csv_file), exist_ok=True)
             with open(csv_file, 'w', newline='') as f:
                 writer = csv.writer(f, delimiter=';')
                 payloads = [row['payload'] for row in self.data]
@@ -144,6 +147,7 @@ class ParameterRequestManager:
             logging.info(f"Data exported to {csv_file}")
         except Exception as e:
             logging.error(f"Failed to export to CSV: {e}")
+            raise
 
     async def run(self):
         """Run the parameter request process for a single iteration.
