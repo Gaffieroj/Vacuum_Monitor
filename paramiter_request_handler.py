@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 import asyncio
 import logging
-import csv
-import os
+import socket
 import sys
 import serial_asyncio
 from package_handler_async import PackageHandler
@@ -35,10 +34,11 @@ class ChannelConfig:
     multiplier: float
 
 class ParameterRequestManager:
-    """Manages parameter requests and data logging over a serial connection.
+    """Manages parameter requests and data transmission over a serial connection and UDP.
 
-    Handles sending parameter requests, processing responses, and exporting data
-    to a CSV file. Performs a single iteration of requests for all channels.
+    Handles sending parameter requests, processing responses, and sending payloads
+    prefixed with 'VAC;PUMP1;' to a UDP server for a single iteration of requests,
+    only if the handshake is successful.
     """
 
     def __init__(self, port, baudrate, iterations=1, delay=1.0):
@@ -114,7 +114,7 @@ class ParameterRequestManager:
                     else:  # Keep integers (multiplier = 1)
                         payload_formatted = int(payload_value)
                     logging.info(f"Iteration {iteration} - Reply {i} valid, channel_id: {channel_id}, channel: {channel_name}, payload: {payload_formatted}, unit: {unit}")
-                    # Store valid reply data (only payload needed for CSV)
+                    # Store valid reply data (only payload needed for UDP)
                     self.data.append({
                         'iteration': iteration,
                         'channel_id': channel_id,
@@ -129,32 +129,13 @@ class ParameterRequestManager:
             except KeyError as e:
                 logging.error(f"Iteration {iteration} - Key error in reply {i}: {e}, received_msg: {received_msg}")
 
-    def export_to_csv(self):
-        """Export collected payloads to a CSV file.
-
-        Writes a single row of payloads separated by semicolons to 'C:\\temp\\parameter_data.csv'.
-        Creates the 'C:\\temp' directory if it does not exist.
-        @throws Exception: If CSV file writing fails or the directory is inaccessible.
-        """
-        csv_file = r'C:\temp\parameter_data.csv'
-        try:
-            # Ensure the directory exists
-            os.makedirs(os.path.dirname(csv_file), exist_ok=True)
-            with open(csv_file, 'w', newline='') as f:
-                writer = csv.writer(f, delimiter=';')
-                payloads = [row['payload'] for row in self.data]
-                writer.writerow(payloads)
-            logging.info(f"Data exported to {csv_file}")
-        except Exception as e:
-            logging.error(f"Failed to export to CSV: {e}")
-            raise
-
     async def run(self):
         """Run the parameter request process for a single iteration.
 
-        Establishes a serial connection, performs handshake, sends parameter
-        requests, exports data to CSV, and terminates the script.
-        @throws Exception: If serial connection or processing fails.
+        Establishes a serial connection, performs handshake, and sends parameter
+        requests. If the handshake is successful, sends payloads prefixed with
+        'VAC;PUMP1;' to a UDP server. Terminates the script after completion.
+        @throws Exception: If serial connection, processing, or UDP transmission fails.
         """
         try:
             loop = asyncio.get_running_loop()
@@ -167,16 +148,30 @@ class ParameterRequestManager:
                 logging.info(f"Starting iteration {iteration}/{self.iterations}")
                 if await self.handler.handshake():
                     await self.send_parameter_requests(iteration)
+                    # Prepare and send UDP message only if handshake succeeds
+                    payloads = [str(row['payload']) for row in self.data]
+                    message = "VAC;PUMP1;" + ";".join(payloads)
+                    logging.info(f"Prepared UDP message: {message}")
+                    try:
+                        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                        server_address = ('mtsgwm3ux05ac02.emea.avnet.com', 4041)
+                        udp_socket.sendto(message.encode('utf-8'), server_address)
+                        logging.info(f"Sent UDP message to {server_address[0]}:{server_address[1]}")
+                        udp_socket.close()
+                    except socket.gaierror as e:
+                        logging.error(f"UDP hostname resolution failed: {e}")
+                        raise
+                    except OSError as e:
+                        logging.error(f"UDP send error: {e}")
+                        raise
                 else:
-                    logging.error(f"Iteration {iteration} - Handshake failed.")
-                await asyncio.sleep(self.delay)
+                    logging.error(f"Iteration {iteration} - Handshake failed, skipping UDP transmission.")
 
-            self.export_to_csv()
             transport.close()  # Close serial connection
             logging.info("Serial connection closed, terminating script.")
             loop.stop()  # Stop the event loop
             sys.exit(0)  # Exit the script
 
         except Exception as e:
-            logging.critical(f"Serial connection error: {e}")
+            logging.critical(f"Error: {e}")
             sys.exit(1)  # Exit with error code on failure
