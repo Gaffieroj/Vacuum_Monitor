@@ -9,6 +9,24 @@ from package_handler_async import PackageHandler
 
 @dataclass
 class ChannelConfig:
+    """Configuration for a device channel.
+
+    Stores metadata for a parameter channel, including ID, name, unit, and multiplier
+    for payload processing.
+    
+    @param id_high: High byte of the parameter ID.
+    @type id_high: int
+    @param id_low: Low byte of the parameter ID.
+    @type id_low: int
+    @param channel_id: Decimal channel ID (id_high * 256 + id_low).
+    @type channel_id: int
+    @param channel_name: Human-readable name of the channel.
+    @type channel_name: str
+    @param unit: Unit of measurement for the channel.
+    @type unit: str
+    @param multiplier: Multiplier for payload conversion (0.01, 0.1, or 1).
+    @type multiplier: float
+    """
     id_high: int
     id_low: int
     channel_id: int
@@ -17,7 +35,24 @@ class ChannelConfig:
     multiplier: float
 
 class ParameterRequestManager:
-    def __init__(self, port, baudrate, iterations=10, delay=1.0):
+    """Manages parameter requests and data logging over a serial connection.
+
+    Handles sending parameter requests, processing responses, and exporting data
+    to a CSV file. Performs a single iteration of requests for all channels.
+    """
+
+    def __init__(self, port, baudrate, iterations=1, delay=1.0):
+        """Initialize the ParameterRequestManager with serial and iteration settings.
+
+        @param port: Serial port identifier (e.g., 'COM8' or '/dev/ttyUSB0').
+        @type port: str
+        @param baudrate: Serial baud rate (e.g., 57600).
+        @type baudrate: int
+        @param iterations: Number of iterations to perform (default: 1).
+        @type iterations: int
+        @param delay: Delay after iteration (seconds, default: 1.0).
+        @type delay: float
+        """
         self.port = port
         self.baudrate = baudrate
         self.iterations = iterations
@@ -41,6 +76,13 @@ class ParameterRequestManager:
         self.messages = [(c.id_high, c.id_low, 0x00, 0x01) for c in self.channels]
 
     async def send_parameter_requests(self, iteration):
+        """Send parameter requests for all channels and process responses.
+
+        @param iteration: Current iteration number (1-based).
+        @type iteration: int
+        @throws asyncio.TimeoutError: If a response is not received within 5 seconds.
+        @throws KeyError: If the received message lacks expected fields.
+        """
         for i, (id_high, id_low, payload_high, payload_low) in enumerate(self.messages, 1):
             self.handler.send_msg(id_high, id_low, payload_high, payload_low)
             try:
@@ -72,7 +114,7 @@ class ParameterRequestManager:
                     else:  # Keep integers (multiplier = 1)
                         payload_formatted = int(payload_value)
                     logging.info(f"Iteration {iteration} - Reply {i} valid, channel_id: {channel_id}, channel: {channel_name}, payload: {payload_formatted}, unit: {unit}")
-                    # Store valid reply data
+                    # Store valid reply data (only payload needed for CSV)
                     self.data.append({
                         'iteration': iteration,
                         'channel_id': channel_id,
@@ -88,18 +130,28 @@ class ParameterRequestManager:
                 logging.error(f"Iteration {iteration} - Key error in reply {i}: {e}, received_msg: {received_msg}")
 
     def export_to_csv(self):
+        """Export collected payloads to a CSV file.
+
+        Writes a single row of payloads separated by semicolons to 'parameter_data.csv'.
+        @throws Exception: If CSV file writing fails.
+        """
         csv_file = 'parameter_data.csv'
         try:
             with open(csv_file, 'w', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=['iteration', 'channel_id', 'channel_name', 'payload', 'unit'])
-                writer.writeheader()
-                for row in self.data:
-                    writer.writerow(row)
+                writer = csv.writer(f, delimiter=';')
+                payloads = [row['payload'] for row in self.data]
+                writer.writerow(payloads)
             logging.info(f"Data exported to {csv_file}")
         except Exception as e:
             logging.error(f"Failed to export to CSV: {e}")
 
     async def run(self):
+        """Run the parameter request process for a single iteration.
+
+        Establishes a serial connection, performs handshake, sends parameter
+        requests, exports data to CSV, and terminates the script.
+        @throws Exception: If serial connection or processing fails.
+        """
         try:
             loop = asyncio.get_running_loop()
             transport, protocol = await serial_asyncio.create_serial_connection(
