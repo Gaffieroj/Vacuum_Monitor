@@ -1,0 +1,80 @@
+Write a class in python named PackageHandler which uses com8 at 56700 baudrate and has the following defenitions:
+always output what is beeing sent and received
+Class variables
+ self.ack = b'\x10\x06' 
+ self.header = b'\x10\x02' 
+ self.msg_done = b'\x10\x03'
+ self.send_counter=3
+   
+def handshake():
+    wait for message in the following format
+    byte 1 and byte2 = self.header
+    byte3 = is any value between 84 and 87
+    bytes4 and 5 are both 00
+    byte6 and byte 7 are self.msg_done
+    byte 8 is crc, calculate using calc_crc()
+    
+    Once message is received send_ack()
+    
+    then send the following message
+    Byte 1 and byte2 = self.header
+    byte 3 = append 8 to send_counter()
+    byte 4 and 5 = 00
+    byte 6 and 7 = self.msg_done
+    byte 8 = gen_crc()
+    
+	
+def  send_ack():
+	send self.ack
+ 
+def wait_ack():
+    wait for self.ack
+
+def send_msg(id_high, id_low, payload_high, payload_low):
+	 
+	 Construct message in buffer and send, message should be:
+      Byte1 and Byte2 = self.header
+      Byte3  = append 4 to send_counter()
+      Byte4  = 0B
+      Byte5  = 01
+      Byte6  = id_high
+	  Byte7  = id_low
+      Byte8  = payload_high
+      Byte9  = payload_low
+      Byte10 and Byte11 = self.msg_done
+      Byte12 = gen_crc()	 
+	
+def decode_rec_msg():
+    decode received message which is broken down as follows:
+	Byte1 and byte2 = self.ack
+	byte3 and byte4 = self.header
+	byte5 = any from c4 to c7
+	byte6 = 0B
+	byte7 = unknown, leave it as any hex byte for now
+	Then payload, which could be a variable number of bytes
+	when self.msg_done is found, this is the end of the message
+	Last byte is the CRC calculated from bytes between self.header and self.msg_done
+	
+	
+def gen_crc():
+     crc-8/Maxim/Dow
+     CRC generated from bytes between between self.header and self.msg_done
+	 
+def calc_crc():
+    crc calculated from bytes in frame between self.header and self.msg_done
+	in received message
+
+def send_counter():
+	inc self.send_counter 
+    count from 4 to 7
+
+def rec_counter():
+    append self.count_rec +1 to "C"
+
+
+ Main.py
+ 
+- Call handshake()  
+- if true handshake() then wait_ack()
+- if true wait_ack() then send_msg(00, 01, 00, 01)
+ 
