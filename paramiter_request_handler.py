@@ -34,7 +34,7 @@ class ParameterRequestManager:
             ChannelConfig(0x00, 0x05, 5, "Motor Power", "%", 0.1),
             ChannelConfig(0x00, 0x06, 6, "Motor Voltage", "V", 0.1),
             ChannelConfig(0x00, 0x09, 9, "Motor Temperature", "°C", 1),
-            ChannelConfig(0x00, 0x07, 7, "DC-link Volatage", "V", 1),
+            ChannelConfig(0x00, 0x07, 7, "DC-link Voltage", "V", 1),
             ChannelConfig(0x00, 0x08, 8, "Unit Temperature", "°C", 1),
             ChannelConfig(0x07, 0x21, 1825, "Board Temp", "°C", 1),
             ChannelConfig(0x07, 0x6B, 1899, "Service counter", "h", 1)
@@ -86,6 +86,8 @@ class ParameterRequestManager:
     async def run(self):
         """Run the parameter request process for a single iteration."""
         try:
+            enable_udp_send = True  # Set to True to enable UDP sending
+
             loop = asyncio.get_running_loop()
             handshake_success = False
             max_handshake_retries = 5
@@ -114,21 +116,29 @@ class ParameterRequestManager:
             for iteration in range(1, self.iterations + 1):
                 logging.info(f"Starting iteration {iteration}/{self.iterations}")
                 await self.send_parameter_requests(iteration)
-                payloads = [str(row['payload']) for row in self.data]
+                payloads = [str(row['payload']) for row in self.data if row['iteration'] == iteration]
                 message = "VAC;PUMP1;" + ";".join(payloads)
                 logging.info(f"Prepared UDP message: {message}")
-                try:
-                    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    server_address = ('mtsgwm3ux05ac02.emea.avnet.com', 4041)
-                    udp_socket.sendto(message.encode('utf-8'), server_address)
-                    logging.info(f"Sent UDP message to {server_address[0]}:{server_address[1]}")
-                    udp_socket.close()
-                except socket.gaierror as e:
-                    logging.error(f"UDP hostname resolution failed: {e}")
-                    raise
-                except OSError as e:
-                    logging.error(f"UDP send error: {e}")
-                    raise
+
+                # Check if all 12 parameter payloads are present before sending
+                if len(payloads) == 12:
+                    if enable_udp_send:
+                        try:
+                            udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                            server_address = ('mtsgwm3ux05ac02.emea.avnet.com', 4041)
+                            udp_socket.sendto(message.encode('utf-8'), server_address)
+                            logging.info(f"Sent UDP message to {server_address[0]}:{server_address[1]}")
+                            udp_socket.close()
+                        except socket.gaierror as e:
+                            logging.error(f"UDP hostname resolution failed: {e}")
+                            raise
+                        except OSError as e:
+                            logging.error(f"UDP send error: {e}")
+                            raise
+                    else:
+                        logging.info("UDP sending is disabled (debug mode).")
+                else:
+                    logging.warning(f"UDP message not sent: Only {len(payloads)} parameter payloads collected (expected 12).")
 
             if transport:
                 transport.close()
