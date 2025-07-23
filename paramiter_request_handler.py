@@ -37,7 +37,8 @@ class ParameterRequestManager:
             ChannelConfig(0x00, 0x07, 7, "DC-link Voltage", "V", 1),
             ChannelConfig(0x00, 0x08, 8, "Unit Temperature", "°C", 1),
             ChannelConfig(0x07, 0x21, 1825, "Board Temp", "°C", 1),
-            ChannelConfig(0x07, 0x6B, 1899, "Service counter", "h", 1)
+            ChannelConfig(0x07, 0x6B, 1899, "Service counter", "h", 1)#,
+            #ChannelConfig(0x00, 0x0E, 14, "Reservoir Vacuum Level", "%", 0.1)
         ]
         self.messages = [(c.id_high, c.id_low, 0x00, 0x01) for c in self.channels]
 
