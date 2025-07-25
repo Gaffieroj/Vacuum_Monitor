@@ -96,7 +96,7 @@ class ParameterRequestManager:
     async def run(self):
         """Run the parameter request process for a single iteration."""
         try:
-            enable_udp_send = False  # Set to True to enable UDP sending
+            enable_udp_send = True  # Set to True to enable UDP sending
 
             loop = asyncio.get_running_loop()
             handshake_success = False
