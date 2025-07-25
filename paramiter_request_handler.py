@@ -38,7 +38,7 @@ class ParameterRequestManager:
             ChannelConfig(0x00, 0x08, 8, "Unit Temperature", "°C", 1),
             ChannelConfig(0x07, 0x21, 1825, "Board Temp", "°C", 1),
             ChannelConfig(0x07, 0x6B, 1899, "Service counter", "h", 1),
-            ChannelConfig(0x00, 0x0E, 14, "Reservoir Vacuum Level", "%", 0.1)
+            ChannelConfig(0x00, 0x0E, 14, "Reservoir Vacuum Level", "%", 1)
         ]
         self.messages = [(c.id_high, c.id_low, 0x00, 0x01) for c in self.channels]
 
@@ -58,25 +58,34 @@ class ParameterRequestManager:
                 logging.info(f"Iteration {iteration} - Received reply {i}: {received_bytes.hex().upper()}")
                 self.handler.send_ack()
                 if is_valid:
-                    payload_int = int.from_bytes(received_msg['payload'], byteorder='big')
-                    channel = next((c for c in self.channels if c.id_high == id_high and c.id_low == id_low), None)
-                    channel_id = channel.channel_id if channel else 0
-                    channel_name = channel.channel_name if channel else "Unknown"
-                    unit = channel.unit if channel else "N/A"
-                    multiplier = channel.multiplier if channel else 1
-                    payload_value = payload_int * multiplier
-                    if multiplier < 1:
-                        payload_formatted = f"{payload_value:.2f}"
-                    else:
-                        payload_formatted = int(payload_value)
-                    logging.info(f"Iteration {iteration} - Reply {i} valid, channel_id: {channel_id}, channel: {channel_name}, payload: {payload_formatted}, unit: {unit}")
-                    self.data.append({
-                        'iteration': iteration,
-                        'channel_id': channel_id,
-                        'channel_name': channel_name,
-                        'payload': payload_formatted,
-                        'unit': unit
-                    })
+                  payload_int = int.from_bytes(received_msg['payload'], byteorder='big')
+                  channel = next((c for c in self.channels if c.id_high == id_high and c.id_low == id_low), None)
+                  channel_id = channel.channel_id if channel else 0
+                  channel_name = channel.channel_name if channel else "Unknown"
+                  unit = channel.unit if channel else "N/A"
+                  multiplier = channel.multiplier if channel else 1
+                  payload_value = payload_int * multiplier
+              
+                  # For UDP message: Reservoir Vacuum Level is -1000 + percentage
+                  if channel_id == 14:
+                      udp_payload = int(-1000 + payload_value)
+                      payload_formatted = f"{udp_payload}"
+                      unit = "mbar"
+                  elif multiplier < 1:
+                      payload_formatted = f"{payload_value:.2f}"
+                      udp_payload = payload_formatted
+                  else:
+                      payload_formatted = int(payload_value)
+                      udp_payload = payload_formatted
+              
+                  logging.info(f"Iteration {iteration} - Reply {i} valid, channel_id: {channel_id}, channel: {channel_name}, payload: {payload_formatted}, unit: {unit}")
+                  self.data.append({
+                      'iteration': iteration,
+                      'channel_id': channel_id,
+                      'channel_name': channel_name,
+                      'payload': udp_payload,
+                      'unit': unit
+                  })
                 else:
                     logging.warning(f"Iteration {iteration} - Reply {i} invalid: {received_msg}")
             except asyncio.TimeoutError:
@@ -87,7 +96,7 @@ class ParameterRequestManager:
     async def run(self):
         """Run the parameter request process for a single iteration."""
         try:
-            enable_udp_send = True  # Set to True to enable UDP sending
+            enable_udp_send = False  # Set to True to enable UDP sending
 
             loop = asyncio.get_running_loop()
             handshake_success = False
