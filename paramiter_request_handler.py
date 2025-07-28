@@ -38,7 +38,12 @@ class ParameterRequestManager:
             ChannelConfig(0x00, 0x08, 8, "Unit Temperature", "°C", 1),
             ChannelConfig(0x07, 0x21, 1825, "Board Temp", "°C", 1),
             ChannelConfig(0x07, 0x6B, 1899, "Service counter", "h", 1),
-            ChannelConfig(0x00, 0x0E, 14, "Reservoir Vacuum Level", "%", 1)
+            ChannelConfig(0x00, 0x0E, 14, "Reservoir Vacuum Level", "%", 1),
+            ChannelConfig(0x03, 0x3B, 827, "MWh Counter", "MW", 0.001),
+            ChannelConfig(0x03, 0x3C, 828, "Power On Time:Days", "Days", 1),
+            ChannelConfig(0x03, 0x3D, 829, "Power On Time:Hours", "Hours", 1),
+            ChannelConfig(0x03, 0x48, 840, "Unit Run Time:Days", "Days", 1),
+            ChannelConfig(0x03, 0x49, 841, "Unit Run Time:Hours", "Hours", 1)
         ]
         self.messages = [(c.id_high, c.id_low, 0x00, 0x01) for c in self.channels]
 
@@ -131,7 +136,7 @@ class ParameterRequestManager:
                 logging.info(f"Prepared UDP message: {message}")
 
                 # Check if all 13 parameter payloads are present before sending
-                if len(payloads) == 13:
+                if len(payloads) == 18:
                     if enable_udp_send:
                         try:
                             udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -148,7 +153,7 @@ class ParameterRequestManager:
                     else:
                         logging.info("UDP sending is disabled (debug mode).")
                 else:
-                    logging.warning(f"UDP message not sent: Only {len(payloads)} parameter payloads collected (expected 12).")
+                    logging.warning(f"UDP message not sent: Only {len(payloads)} parameter payloads collected (expected 18).")
 
             if transport:
                 transport.close()
