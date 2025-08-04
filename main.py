@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from paramiter_request_handler import ParameterRequestManager
+from parameter_request_handler import ParameterRequestManager
 
 async def main():
     port = 'COM8'
