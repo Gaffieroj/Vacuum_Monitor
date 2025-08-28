@@ -246,3 +246,5 @@ Account{name=Vacuum_Monitor, path=S:/Test-engineering/Vacuum_Pumps/Vacuum_Monito
 2025-08-28 12:52:25.558 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
 2025-08-28 12:52:42.731 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
 2025-08-28 12:53:00.210 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
+2025-08-28 12:54:03.147 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
+2025-08-28 12:54:27.200 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
