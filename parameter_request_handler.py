@@ -3,6 +3,7 @@ import asyncio
 import logging
 import socket
 import sys
+import os 
 import serial_asyncio
 from package_handler_async import PackageHandler
 
@@ -26,6 +27,7 @@ class ParameterRequestManager:
         self.handler = None
         self.data = []
         self.channels = [
+            ChannelConfig(0x03, 0x42, 834, "Power SW version", "", 1),
             ChannelConfig(0x00, 0x01, 1, "Output Freq", "Hz", 0.01),
             ChannelConfig(0x00, 0x19, 25, "Freq Ref.", "Hz", 0.01),
             ChannelConfig(0x00, 0x02, 2, "Motor shaft speed", "rpm", 1),
@@ -101,7 +103,8 @@ class ParameterRequestManager:
     async def run(self):
         """Run the parameter request process for a single iteration."""
         try:
-            enable_udp_send = True  # Set to True to enable UDP sending
+            # Set to False to write to file instead of sending UDP
+            enable_udp_send = False
 
             loop = asyncio.get_running_loop()
             handshake_success = False
@@ -135,8 +138,8 @@ class ParameterRequestManager:
                 message = "VAC;PUMP1;" + ";".join(payloads)
                 logging.info(f"Prepared UDP message: {message}")
 
-                # Check if all 13 parameter payloads are present before sending
-                if len(payloads) == 18:
+                # Check if all 19 parameter payloads are present before sending
+                if len(payloads) == 19:
                     if enable_udp_send:
                         try:
                             udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -151,7 +154,20 @@ class ParameterRequestManager:
                             logging.error(f"UDP send error: {e}")
                             raise
                     else:
-                        logging.info("UDP sending is disabled (debug mode).")
+                        log_message = "UDP sending is disabled. Appending message to file."
+                        file_path = r"C:\temp\UDPTest\UDP1.txt"
+                        directory = os.path.dirname(file_path)
+                        try:
+                            # Create the directory if it does not exist
+                            os.makedirs(directory, exist_ok=True)
+                            # --- MODIFICATION START ---
+                            # Open the file in append mode ('a') and add a newline
+                            with open(file_path, 'a', encoding='utf-8') as f:
+                                f.write(message + "\n")
+                            # --- MODIFICATION END ---
+                            logging.info(f"{log_message} at {file_path}")
+                        except OSError as e:
+                            logging.error(f"Failed to append UDP message to file {file_path}: {e}")
                 else:
                     logging.warning(f"UDP message not sent: Only {len(payloads)} parameter payloads collected (expected 18).")
 
