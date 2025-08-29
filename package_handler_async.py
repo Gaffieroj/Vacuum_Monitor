@@ -66,7 +66,7 @@ class PackageHandler(asyncio.Protocol):
     
     def increment_receive_counter(self):
         if self.receive_counter_val is None:
-            return None  # Defer increment until counter is set
+            return None
         val_rec_cnt = self.receive_counter_val
         self.receive_counter_val += 1
         if self.receive_counter_val > 7:
@@ -120,12 +120,8 @@ class PackageHandler(asyncio.Protocol):
                     if crc_byte and expected_crc is not None and crc_byte[0] == expected_crc:
                         logging.info("Valid handshake message.")
                         self.send_ack()
-
-                        # Set receive_counter_val to low nibble of Byte 3
                         self.receive_counter_val = frame[2] & 0x0F
                         logging.info(f"Set receive_counter_val to {self.receive_counter_val} from handshake Byte 3: {frame[2]:02X}")
-
-                        # Send additional message after handshake
                         counter_val = self.increment_send_counter()
                         byte3 = int(f"8{counter_val}", 16)
                         msg = bytearray()
@@ -139,7 +135,6 @@ class PackageHandler(asyncio.Protocol):
                         msg.append(crc)
                         self.send_data(msg)
                         logging.info(f"Sent handshake message: {msg.hex().upper()}")
-
                         return True
                     else:
                         logging.warning("Invalid handshake CRC.")
@@ -157,58 +152,62 @@ class PackageHandler(asyncio.Protocol):
                 if ack_index == -1:
                     return
 
-                if len(self.buffer) < ack_index + 6:
+                header_index = ack_index + len(self.ack)
+                if len(self.buffer) < header_index + len(self.header):
                     return
 
-                header_index = ack_index + 2
                 if self.buffer[header_index:header_index + 2] != self.header:
                     self.buffer = self.buffer[ack_index + 1:]
                     continue
 
                 msg_type = self.buffer[header_index + 2]
-                if msg_type < 0xC4 or msg_type > 0xC7:
+                if not (0xC4 <= msg_type <= 0xC7):
                     self.buffer = self.buffer[ack_index + 1:]
                     continue
-
-                done_index = self.buffer.find(self.msg_done, header_index + 5)
-                if done_index == -1 or len(self.buffer) <= done_index + 1:
+                
+                done_index = self.buffer.find(self.msg_done, header_index)
+                if done_index == -1:
                     return
 
+                # --- MODIFIED LOGIC ---
+                # Calculate the expected position of the CRC byte.
                 crc_index = done_index + len(self.msg_done)
-                crc = self.buffer[crc_index]
-                full_msg = self.buffer[header_index:crc_index]
+                
+                # Check if the buffer is long enough to contain the CRC byte.
+                if len(self.buffer) <= crc_index:
+                    return # The full message (including CRC) has not arrived yet.
 
-                calc = self.crc8(full_msg[len(self.header):done_index - header_index])
+                crc = self.buffer[crc_index]
+                full_msg_body = self.buffer[header_index:done_index]
+                payload_for_crc = full_msg_body[len(self.header):]
+                
+                calc = self.crc8(payload_for_crc)
                 
                 if crc != calc:
-                    logging.warning(f"CRC mismatch in response: {full_msg.hex().upper()}")
+                    logging.warning(f"CRC mismatch in response: {self.buffer[header_index:crc_index+1].hex().upper()}")
                     self.buffer = self.buffer[crc_index + 1:]
                     continue
 
-                type_ = self.buffer[ack_index + 4]
-                byte6 = self.buffer[ack_index + 5]
-                byte7 = self.buffer[ack_index + 6]
-                payload_start = ack_index + 7
-                payload_end = done_index
-                payload = self.buffer[payload_start:payload_end]
+                # Extract data now that we know the message is complete and valid
+                type_ = self.buffer[header_index + 2]
+                byte6 = self.buffer[header_index + 3]
+                byte7 = self.buffer[header_index + 4]
+                payload = self.buffer[header_index + 5:done_index]
                 full_message = self.buffer[ack_index:crc_index + 1]
 
-                # Increment counter before decoding
                 prev_counter = self.receive_counter_val
                 self.increment_receive_counter()
                 expected_type = int(f"C{self.receive_counter_val}", 16)
+                
                 decoded_msg = {
-                    'type': type_,
-                    'byte6': byte6,
-                    'byte7': byte7,
-                    'payload': payload,
-                    'full_message': full_message,
-                    'receive_counter': self.receive_counter_val,
+                    'type': type_, 'byte6': byte6, 'byte7': byte7, 'payload': payload,
+                    'full_message': full_message, 'receive_counter': self.receive_counter_val,
                     'is_valid_type': type_ == expected_type
                 }
                 self.message_queue.put_nowait(decoded_msg)
+                
                 logging.info(f"Decoded message: type={type_:02X}, byte6={byte6:02X}, byte7={byte7:02X}, payload={payload.hex().upper()}, receive_counter={self.receive_counter_val} (prev={prev_counter})")
-                if type_ != expected_type:
+                if not decoded_msg['is_valid_type']:
                     logging.warning(f"Unexpected message type: received {type_:02X}, expected {expected_type:02X}, receive_counter={self.receive_counter_val}")
 
                 self.buffer = self.buffer[crc_index + 1:]
