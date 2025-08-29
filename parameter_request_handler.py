@@ -112,7 +112,7 @@ class ParameterRequestManager:
         while True:
             transport = None
             try:
-                enable_udp_send = False
+                enable_udp_send = True
 
                 logging.info("Attempting to establish serial connection...")
                 transport, self.handler = await serial_asyncio.create_serial_connection(
