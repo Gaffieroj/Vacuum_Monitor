@@ -1,0 +1,117 @@
+\doxysection{package\+\_\+handler\+\_\+async.\+Package\+Handler Class Reference}
+\hypertarget{classpackage__handler__async_1_1_package_handler}{}\label{classpackage__handler__async_1_1_package_handler}\index{package\_handler\_async.PackageHandler@{package\_handler\_async.PackageHandler}}
+Inheritance diagram for package\+\_\+handler\+\_\+async.\+Package\+Handler\+:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classpackage__handler__async_1_1_package_handler}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a4cdf22579fbfccfd08e633eced897aed}\label{classpackage__handler__async_1_1_package_handler_a4cdf22579fbfccfd08e633eced897aed} 
+{\bfseries \+\_\+\+\_\+init\+\_\+\+\_\+} (self)
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_ad3348257574ad87c5200ab4e169041a3}\label{classpackage__handler__async_1_1_package_handler_ad3348257574ad87c5200ab4e169041a3} 
+{\bfseries connection\+\_\+made} (self, transport)
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_ad8475d2e72fd3af2cc5be2d8e2d135b8}\label{classpackage__handler__async_1_1_package_handler_ad8475d2e72fd3af2cc5be2d8e2d135b8} 
+{\bfseries connection\+\_\+lost} (self, exc)
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_af112078c3d8cae62229b4947c96aaa4f}\label{classpackage__handler__async_1_1_package_handler_af112078c3d8cae62229b4947c96aaa4f} 
+{\bfseries data\+\_\+received} (self, data)
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_ac20e1fcc5f8558c50958c35a951d6d34}\label{classpackage__handler__async_1_1_package_handler_ac20e1fcc5f8558c50958c35a951d6d34} 
+{\bfseries send\+\_\+data} (self, bytes data)
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a50630ea225543f3d158f3e646f65a164}\label{classpackage__handler__async_1_1_package_handler_a50630ea225543f3d158f3e646f65a164} 
+{\bfseries send\+\_\+ack} (self)
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a319f4afdc91483bbd61ea3207b31f212}\label{classpackage__handler__async_1_1_package_handler_a319f4afdc91483bbd61ea3207b31f212} 
+{\bfseries gen\+\_\+crc} (self, bytes msg\+\_\+body)
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a401c1732ddf81cacb03a3d24f0e89cd1}\label{classpackage__handler__async_1_1_package_handler_a401c1732ddf81cacb03a3d24f0e89cd1} 
+{\bfseries increment\+\_\+send\+\_\+counter} (self)
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_ad9af215d5b85273973a2bb2c737e6920}\label{classpackage__handler__async_1_1_package_handler_ad9af215d5b85273973a2bb2c737e6920} 
+{\bfseries increment\+\_\+receive\+\_\+counter} (self)
+\item 
+\mbox{\hyperlink{classpackage__handler__async_1_1_package_handler_a86b94f3ef4bbfaadb7f0f59d2a4eee04}{send\+\_\+custom\+\_\+message}} (self, int prefix\+\_\+nibble, bytes payload)
+\item 
+\mbox{\hyperlink{classpackage__handler__async_1_1_package_handler_ae892a93674977fe8be54f36c01e181e1}{send\+\_\+msg}} (self, int id\+\_\+high, int id\+\_\+low, int payload\+\_\+high, int payload\+\_\+low)
+\item 
+\mbox{\hyperlink{classpackage__handler__async_1_1_package_handler_a6962c6fb979cb85c22a202c63cc6c513}{handshake}} (self, timeout=1)
+\item 
+\mbox{\hyperlink{classpackage__handler__async_1_1_package_handler_a4a07b8c327d98b7a19a322071ccc6232}{decode\+\_\+rec\+\_\+msg}} (self)
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a2b104a43cc943b3d553f5375da228cfb}\label{classpackage__handler__async_1_1_package_handler_a2b104a43cc943b3d553f5375da228cfb} 
+{\bfseries transport} = None
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_aa8bb2879dae8755133e6060e66c168c9}\label{classpackage__handler__async_1_1_package_handler_aa8bb2879dae8755133e6060e66c168c9} 
+{\bfseries buffer} = bytearray()
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a9b3c0c58d41bf53e1b2aee1741de3c90}\label{classpackage__handler__async_1_1_package_handler_a9b3c0c58d41bf53e1b2aee1741de3c90} 
+str {\bfseries ack} = b\textquotesingle{}\textbackslash{}x10\textbackslash{}x06\textquotesingle{}
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a69ed53b7539b25b912fc1422b392102f}\label{classpackage__handler__async_1_1_package_handler_a69ed53b7539b25b912fc1422b392102f} 
+str {\bfseries header} = b\textquotesingle{}\textbackslash{}x10\textbackslash{}x02\textquotesingle{}
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_afafa21ca71e18120aaaa951e6838ccc8}\label{classpackage__handler__async_1_1_package_handler_afafa21ca71e18120aaaa951e6838ccc8} 
+str {\bfseries msg\+\_\+done} = b\textquotesingle{}\textbackslash{}x10\textbackslash{}x03\textquotesingle{}
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_ab88798609646e4aa5716295a0521f332}\label{classpackage__handler__async_1_1_package_handler_ab88798609646e4aa5716295a0521f332} 
+{\bfseries crc8} = mk\+Predefined\+Crc\+Fun(\textquotesingle{}crc-\/8-\/maxim\textquotesingle{})
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a434a0ab354852a75a160e59c6c68f508}\label{classpackage__handler__async_1_1_package_handler_a434a0ab354852a75a160e59c6c68f508} 
+{\bfseries on\+\_\+con\+\_\+lost} = asyncio.\+get\+\_\+event\+\_\+loop().create\+\_\+future()
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a7c095bb2a06887e8279c9ba96a4484a1}\label{classpackage__handler__async_1_1_package_handler_a7c095bb2a06887e8279c9ba96a4484a1} 
+int {\bfseries send\+\_\+counter\+\_\+val} = 4
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a2723a81200738e6cfff2ca50ba959678}\label{classpackage__handler__async_1_1_package_handler_a2723a81200738e6cfff2ca50ba959678} 
+int {\bfseries receive\+\_\+counter\+\_\+val} = None
+\item 
+\Hypertarget{classpackage__handler__async_1_1_package_handler_aacdacab05a63155377dcc316af5b84fe}\label{classpackage__handler__async_1_1_package_handler_aacdacab05a63155377dcc316af5b84fe} 
+{\bfseries message\+\_\+queue} = asyncio.\+Queue()
+\end{DoxyCompactItemize}
+
+
+\label{doc-func-members}
+\Hypertarget{classpackage__handler__async_1_1_package_handler_doc-func-members}
+\doxysubsection{Member Function Documentation}
+\Hypertarget{classpackage__handler__async_1_1_package_handler_a4a07b8c327d98b7a19a322071ccc6232}\index{package\_handler\_async.PackageHandler@{package\_handler\_async.PackageHandler}!decode\_rec\_msg@{decode\_rec\_msg}}
+\index{decode\_rec\_msg@{decode\_rec\_msg}!package\_handler\_async.PackageHandler@{package\_handler\_async.PackageHandler}}
+\doxysubsubsection{\texorpdfstring{decode\_rec\_msg()}{decode\_rec\_msg()}}
+{\footnotesize\ttfamily \label{classpackage__handler__async_1_1_package_handler_a4a07b8c327d98b7a19a322071ccc6232} 
+package\+\_\+handler\+\_\+async.\+Package\+Handler.\+decode\+\_\+rec\+\_\+msg (\begin{DoxyParamCaption}\item[{}]{self}{}\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Decodes incoming messages from the buffer.\end{DoxyVerb}
+ \Hypertarget{classpackage__handler__async_1_1_package_handler_a6962c6fb979cb85c22a202c63cc6c513}\index{package\_handler\_async.PackageHandler@{package\_handler\_async.PackageHandler}!handshake@{handshake}}
+\index{handshake@{handshake}!package\_handler\_async.PackageHandler@{package\_handler\_async.PackageHandler}}
+\doxysubsubsection{\texorpdfstring{handshake()}{handshake()}}
+{\footnotesize\ttfamily \label{classpackage__handler__async_1_1_package_handler_a6962c6fb979cb85c22a202c63cc6c513} 
+package\+\_\+handler\+\_\+async.\+Package\+Handler.\+handshake (\begin{DoxyParamCaption}\item[{}]{self}{, }\item[{}]{timeout}{ = {\ttfamily 1}}\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Performs the initial handshake to synchronize counters.\end{DoxyVerb}
+ \Hypertarget{classpackage__handler__async_1_1_package_handler_a86b94f3ef4bbfaadb7f0f59d2a4eee04}\index{package\_handler\_async.PackageHandler@{package\_handler\_async.PackageHandler}!send\_custom\_message@{send\_custom\_message}}
+\index{send\_custom\_message@{send\_custom\_message}!package\_handler\_async.PackageHandler@{package\_handler\_async.PackageHandler}}
+\doxysubsubsection{\texorpdfstring{send\_custom\_message()}{send\_custom\_message()}}
+{\footnotesize\ttfamily \label{classpackage__handler__async_1_1_package_handler_a86b94f3ef4bbfaadb7f0f59d2a4eee04} 
+package\+\_\+handler\+\_\+async.\+Package\+Handler.\+send\+\_\+custom\+\_\+message (\begin{DoxyParamCaption}\item[{}]{self}{, }\item[{int}]{prefix\+\_\+nibble}{, }\item[{bytes}]{payload}{}\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Builds and sends a message with a custom payload, handling counter and CRC.\end{DoxyVerb}
+ \Hypertarget{classpackage__handler__async_1_1_package_handler_ae892a93674977fe8be54f36c01e181e1}\index{package\_handler\_async.PackageHandler@{package\_handler\_async.PackageHandler}!send\_msg@{send\_msg}}
+\index{send\_msg@{send\_msg}!package\_handler\_async.PackageHandler@{package\_handler\_async.PackageHandler}}
+\doxysubsubsection{\texorpdfstring{send\_msg()}{send\_msg()}}
+{\footnotesize\ttfamily \label{classpackage__handler__async_1_1_package_handler_ae892a93674977fe8be54f36c01e181e1} 
+package\+\_\+handler\+\_\+async.\+Package\+Handler.\+send\+\_\+msg (\begin{DoxyParamCaption}\item[{}]{self}{, }\item[{int}]{id\+\_\+high}{, }\item[{int}]{id\+\_\+low}{, }\item[{int}]{payload\+\_\+high}{, }\item[{int}]{payload\+\_\+low}{}\end{DoxyParamCaption})}
+
+\begin{DoxyVerb}Sends a standard parameter request message.\end{DoxyVerb}
+ 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+package\+\_\+handler\+\_\+async.\+py\end{DoxyCompactItemize}
