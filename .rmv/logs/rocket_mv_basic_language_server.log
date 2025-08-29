@@ -151,3 +151,7 @@ Account{name=Vacuum_Monitor, path=S:/Test-engineering/Vacuum_Pumps/Vacuum_Monito
 2025-08-29 05:50:29.392 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.account.AccountManager - [client:40010105]load account manager finish
 2025-08-29 05:50:29.395 [pool-3-thread-1] INFO  com.rs.mv.mvvs.instance.userspace.UserspaceManager - [framework:30010402]config file(C:\Users\gaffieroj/.rmv/config) watcher launch successful
 2025-08-29 05:50:39.900 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
+2025-08-29 05:50:44.183 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
+2025-08-29 06:08:44.916 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
+2025-08-29 06:08:45.933 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
+2025-08-29 06:08:47.133 [pool-3-thread-1] INFO  com.rs.mv.mvvs.client.catalog.from.scan.CurrentPathScanner - [client:400205]scan file in current open file directory(S:/Test-engineering/Vacuum_Pumps/Vacuum_Monitor)
