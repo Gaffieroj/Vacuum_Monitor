@@ -1,11 +1,11 @@
 # Serial Parameter Logger
 
-This project is a Python-based application for communicating with a device over a serial connection to request parameter data, process responses, and export the results to a CSV file. It uses asynchronous I/O to handle serial communication, perform handshakes, validate messages with CRC-8-Maxim, and log data for multiple iterations.
+This project is a Python-based application for communicating with a BUSCH MV0800 over a serial connection to request parameter data, process responses, and sends results to server via udp. It uses asynchronous I/O to handle serial communication, perform handshakes, validate messages with CRC-8-Maxim, and log data for multiple iterations.
 
 ## Features
 
 - Performs a handshake with the device to establish communication.
-- Sends parameter requests for 12 predefined channels (e.g., Output Freq, Motor Temperature).
+- Sends parameter requests for 18 predefined channels (e.g., Output Freq, Motor Temperature).
 - Processes 2-byte payloads with configurable multipliers (0.01, 0.1, or 1) for float or integer output.
 - Exports valid responses to `parameter_data.csv` with columns: `iteration`, `channel_id`, `channel_name`, `payload`, `unit`.
 - Supports 10 iterations with a 1-second delay between iterations.
