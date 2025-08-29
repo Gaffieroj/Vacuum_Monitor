@@ -19,11 +19,9 @@ class ChannelConfig:
 class ParameterRequestManager:
     """Manages parameter requests and data transmission over a serial connection and UDP."""
 
-    def __init__(self, port, baudrate, iterations=1, delay=1.0):
+    def __init__(self, port, baudrate):
         self.port = port
         self.baudrate = baudrate
-        self.iterations = iterations
-        self.delay = delay
         self.handler = None
         self.data = []
         self.channels = [
@@ -49,134 +47,108 @@ class ParameterRequestManager:
         ]
         self.messages = [(c.id_high, c.id_low, 0x00, 0x01) for c in self.channels]
 
-    async def send_parameter_requests(self, iteration):
+    async def send_parameter_requests(self):
+        """
+        Sends requests for all configured channels.
+        Returns a boolean indicating if a counter sync error was detected.
+        """
+        self.data.clear()
+        sync_error_detected = False
+        
         for i, (id_high, id_low, payload_high, payload_low) in enumerate(self.messages, 1):
             self.handler.send_msg(id_high, id_low, payload_high, payload_low)
             try:
                 received_msg = await asyncio.wait_for(self.handler.message_queue.get(), timeout=5)
+                
+                # --- NEW: Check for counter sync error specifically ---
+                if not received_msg.get('is_valid_type', False):
+                    sync_error_detected = True
+
                 received_bytes = received_msg['full_message']
+                # The main validation remains lenient on the counter to finish the loop
                 is_valid = (len(received_bytes) >= 6 and
                             received_bytes[0:2] == self.handler.ack and
                             received_bytes[2:4] == self.handler.header and
                             received_bytes[4] in range(0xC4, 0xC8) and
-                            self.handler.msg_done in received_bytes[5:-1] and
-                            len(received_bytes) >= received_bytes.find(self.handler.msg_done) + len(self.handler.msg_done) + 1 and
-                            received_msg.get('is_valid_type', False))
-                logging.info(f"Iteration {iteration} - Received reply {i}: {received_bytes.hex().upper()}")
+                            self.handler.msg_done in received_bytes[5:-1])
+
+                logging.info(f"Received reply {i}: {received_bytes.hex().upper()}")
                 self.handler.send_ack()
                 if is_valid:
                   payload_int = int.from_bytes(received_msg['payload'], byteorder='big')
                   channel = next((c for c in self.channels if c.id_high == id_high and c.id_low == id_low), None)
-                  channel_id = channel.channel_id if channel else 0
-                  channel_name = channel.channel_name if channel else "Unknown"
-                  unit = channel.unit if channel else "N/A"
-                  multiplier = channel.multiplier if channel else 1
-                  payload_value = payload_int * multiplier
-              
-                  # For UDP message: Reservoir Vacuum Level is -1000 + percentage
-                  if channel_id == 14:
-                      udp_payload = int(-1000 + payload_value)
-                      payload_formatted = f"{udp_payload}"
-                      unit = "mbar"
-                  elif multiplier < 1:
-                      payload_formatted = f"{payload_value:.2f}"
-                      udp_payload = payload_formatted
-                  else:
-                      payload_formatted = int(payload_value)
-                      udp_payload = payload_formatted
-              
-                  logging.info(f"Iteration {iteration} - Reply {i} valid, channel_id: {channel_id}, channel: {channel_name}, payload: {payload_formatted}, unit: {unit}")
-                  self.data.append({
-                      'iteration': iteration,
-                      'channel_id': channel_id,
-                      'channel_name': channel_name,
-                      'payload': udp_payload,
-                      'unit': unit
-                  })
+                  payload_value = payload_int * (channel.multiplier if channel else 1)
+                  self.data.append({'payload': payload_value})
                 else:
-                    logging.warning(f"Iteration {iteration} - Reply {i} invalid: {received_msg}")
+                    logging.warning(f"Reply {i} invalid: {received_msg}")
+                    break
             except asyncio.TimeoutError:
-                logging.error(f"Iteration {iteration} - Timeout waiting for reply {i}")
+                logging.error(f"Timeout waiting for reply {i}. Aborting polling cycle.")
+                break
             except KeyError as e:
-                logging.error(f"Iteration {iteration} - Key error in reply {i}: {e}, received_msg: {received_msg}")
+                logging.error(f"Key error in reply {i}: {e}. Aborting polling cycle.")
+                break
+        
+        return sync_error_detected
 
     async def run(self):
-        """Run the parameter request process for a single iteration."""
-        try:
-            # Set to False to write to file instead of sending UDP
-            enable_udp_send = False
+        """Runs the parameter request process in a continuous loop with robust error recovery."""
+        loop = asyncio.get_running_loop()
 
-            loop = asyncio.get_running_loop()
-            handshake_success = False
-            max_handshake_retries = 5
+        while True:
             transport = None
-
-            for attempt in range(1, max_handshake_retries + 1):
-                logging.info(f"Handshake attempt {attempt}/{max_handshake_retries}")
-                # Open serial connection
-                transport, protocol = await serial_asyncio.create_serial_connection(
+            try:
+                logging.info("Attempting to establish serial connection...")
+                transport, self.handler = await serial_asyncio.create_serial_connection(
                     loop, lambda: PackageHandler(), self.port, baudrate=self.baudrate
                 )
-                self.handler = protocol
 
-                if await self.handler.handshake():
-                    handshake_success = True
-                    break
-                else:
-                    logging.warning(f"Handshake attempt {attempt} failed.")
-                    transport.close()  # Close COM port before retry
-                    await asyncio.sleep(2)  # Wait before retry
+                if not await self.handler.handshake():
+                    raise ConnectionAbortedError("Handshake failed")
 
-            if not handshake_success:
-                logging.error("Handshake failed after maximum retries. Exiting.")
-                sys.exit(1)
+                logging.info("Handshake successful. Starting continuous data polling.")
 
-            for iteration in range(1, self.iterations + 1):
-                logging.info(f"Starting iteration {iteration}/{self.iterations}")
-                await self.send_parameter_requests(iteration)
-                payloads = [str(row['payload']) for row in self.data if row['iteration'] == iteration]
-                message = "VAC;PUMP1;" + ";".join(payloads)
-                logging.info(f"Prepared UDP message: {message}")
+                while True:
+                    self.handler.buffer.clear()
+                    self.handler.message_queue = asyncio.Queue()
 
-                # Check if all 19 parameter payloads are present before sending
-                if len(payloads) == 19:
-                    if enable_udp_send:
-                        try:
-                            udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                            server_address = ('mtsgwm3ux05ac02.emea.avnet.com', 4041)
-                            udp_socket.sendto(message.encode('utf-8'), server_address)
-                            logging.info(f"Sent UDP message to {server_address[0]}:{server_address[1]}")
-                            udp_socket.close()
-                        except socket.gaierror as e:
-                            logging.error(f"UDP hostname resolution failed: {e}")
-                            raise
-                        except OSError as e:
-                            logging.error(f"UDP send error: {e}")
-                            raise
-                    else:
-                        log_message = "UDP sending is disabled. Appending message to file."
-                        file_path = r"C:\temp\UDPTest\UDP1.txt"
-                        directory = os.path.dirname(file_path)
-                        try:
-                            # Create the directory if it does not exist
-                            os.makedirs(directory, exist_ok=True)
-                            # --- MODIFICATION START ---
-                            # Open the file in append mode ('a') and add a newline
-                            with open(file_path, 'a', encoding='utf-8') as f:
-                                f.write(message + "\n")
-                            # --- MODIFICATION END ---
-                            logging.info(f"{log_message} at {file_path}")
-                        except OSError as e:
-                            logging.error(f"Failed to append UDP message to file {file_path}: {e}")
-                else:
-                    logging.warning(f"UDP message not sent: Only {len(payloads)} parameter payloads collected (expected 18).")
+                    sync_error = await self.send_parameter_requests()
 
-            if transport:
-                transport.close()
-            logging.info("Serial connection closed, terminating script.")
-            loop.stop()
-            sys.exit(0)
+                    # --- NEW: Check the sync error flag after the poll is complete ---
+                    if sync_error:
+                        logging.warning("Counter sync error detected in cycle. Discarding data and restarting handshake.")
+                        break
 
-        except Exception as e:
-            logging.critical(f"Error: {e}")
-            sys.exit(1)
+                    if len(self.data) < 19:
+                        logging.warning("Communication failed: Incomplete data set received. Restarting handshake.")
+                        break
+
+                    payloads = [str(int(row['payload'])) for row in self.data]
+
+                    if payloads[0] != "8":
+                        logging.warning(f"Invalid data: First payload is '{payloads[0]}', expected '8'. Restarting handshake.")
+                        break
+
+                    message = "VAC;PUMP1;" + ";".join(payloads)
+                    logging.info(f"Successfully polled valid data packet: {message}")
+                    
+                    file_path = r"C:\temp\UDPTest\UDP1.txt"
+                    try:
+                        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                        with open(file_path, 'a', encoding='utf-8') as f:
+                            f.write(message + "\n")
+                        logging.debug(f"Appended message to {file_path}")
+                    except OSError as e:
+                        logging.error(f"Failed to write to file: {e}")
+
+            except (serial_asyncio.serial.SerialException, OSError, ConnectionAbortedError) as e:
+                logging.error(f"Connection error: {e}. Retrying...")
+            except Exception as e:
+                logging.critical(f"An unexpected error occurred: {e}. Retrying...")
+            finally:
+                if transport:
+                    logging.info("Closing serial port to ensure it's released.")
+                    transport.close()
+                transport = None
+                self.handler = None
+                await asyncio.sleep(10)

@@ -5,7 +5,8 @@ from parameter_request_handler import ParameterRequestManager
 async def main():
     port = 'COM8'
     baudrate = 57600
-    manager = ParameterRequestManager(port, baudrate, iterations=1, delay=1.0)
+    # Updated to remove obsolete 'iterations' and 'delay' arguments
+    manager = ParameterRequestManager(port, baudrate)
     await manager.run()
 
 if __name__ == "__main__":
