@@ -24,8 +24,9 @@ class ParameterRequestManager:
         self.baudrate = baudrate
         self.handler = None
         self.data = []
+        # NEW: Updated channel list with API System SW ID first and Power SW ID last.
         self.channels = [
-            ChannelConfig(0x03, 0x42, 834, "Power SW version", "", 1),
+            ChannelConfig(0x09, 0x0A, 2314, "API System SW ID", "", 1),
             ChannelConfig(0x00, 0x01, 1, "Output Freq", "Hz", 0.01),
             ChannelConfig(0x00, 0x19, 25, "Freq Ref.", "Hz", 0.01),
             ChannelConfig(0x00, 0x02, 2, "Motor shaft speed", "rpm", 1),
@@ -43,7 +44,8 @@ class ParameterRequestManager:
             ChannelConfig(0x03, 0x3C, 828, "Power On Time:Days", "Days", 1),
             ChannelConfig(0x03, 0x3D, 829, "Power On Time:Hours", "Hours", 1),
             ChannelConfig(0x03, 0x48, 840, "Unit Run Time:Days", "Days", 1),
-            ChannelConfig(0x03, 0x49, 841, "Unit Run Time:Hours", "Hours", 1)
+            ChannelConfig(0x03, 0x49, 841, "Unit Run Time:Hours", "Hours", 1),
+            ChannelConfig(0x09, 0x0B, 2315, "Power SW ID", "", 1),
         ]
         self.messages = [(c.id_high, c.id_low, 0x00, 0x01) for c in self.channels]
     
@@ -76,7 +78,7 @@ class ParameterRequestManager:
             return False
 
     async def send_parameter_requests(self):
-        """Sends requests for all 19 channels as a single block."""
+        """Sends requests for all 20 channels as a single block."""
         self.data.clear()
         
         for i, (id_high, id_low, payload_high, payload_low) in enumerate(self.messages, 1):
@@ -134,10 +136,6 @@ class ParameterRequestManager:
                     while loop.time() - last_poll_start_time < 1.0:
                         if not await self.run_keep_alive_cycle():
                             raise ConnectionAbortedError("Keep-alive failed")
-                        
-                        # --- NEW: Delay between keep-alive blocks ---
-                        logging.debug("Keep-alive block complete. Waiting 1 second...")
-                        await asyncio.sleep(1)
 
                     logging.info(">>> Timer expired. Transitioning to Data Poll phase...")
                     last_poll_start_time = loop.time()
@@ -147,7 +145,7 @@ class ParameterRequestManager:
                     
                     await self.send_parameter_requests()
 
-                    if len(self.data) < 19:
+                    if len(self.data) < 20:
                         logging.warning("Poll resulted in incomplete data set. Restarting handshake.")
                         break
 
@@ -160,11 +158,13 @@ class ParameterRequestManager:
                         else:
                             formatted_payloads.append(str(int(payload_val)))
                     
-                    if formatted_payloads[0] != "8":
-                        logging.warning(f"Integrity Check Failed: First payload is '{formatted_payloads[0]}', expected '8'. Restarting handshake.")
+                    # NEW: Integrity check for the first ('240') and last ('113') payloads.
+                    if formatted_payloads[0] != "240" or formatted_payloads[19] != "113":
+                        logging.warning(f"Integrity Check Failed: Payloads were '{formatted_payloads[0]}' and '{formatted_payloads[19]}'. Expected '240' and '113'. Restarting handshake.")
                         break
                     
-                    message_payloads = formatted_payloads[1:]
+                    # NEW: Slice to get the 18 payloads between the first and last.
+                    message_payloads = formatted_payloads[1:19]
                     message = "VAC;PUMP1;" + ";".join(message_payloads)
                     logging.info(f"SUCCESS: Polled valid data packet (18 payloads): {message}")
                     
