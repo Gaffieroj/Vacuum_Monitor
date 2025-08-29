@@ -48,37 +48,53 @@ class ParameterRequestManager:
         self.messages = [(c.id_high, c.id_low, 0x00, 0x01) for c in self.channels]
 
     async def send_parameter_requests(self):
-        """
-        Sends requests for all configured channels.
-        Returns a boolean indicating if a counter sync error was detected.
-        """
         self.data.clear()
-        sync_error_detected = False
         
         for i, (id_high, id_low, payload_high, payload_low) in enumerate(self.messages, 1):
             self.handler.send_msg(id_high, id_low, payload_high, payload_low)
             try:
                 received_msg = await asyncio.wait_for(self.handler.message_queue.get(), timeout=5)
-                
-                # --- NEW: Check for counter sync error specifically ---
-                if not received_msg.get('is_valid_type', False):
-                    sync_error_detected = True
-
                 received_bytes = received_msg['full_message']
-                # The main validation remains lenient on the counter to finish the loop
                 is_valid = (len(received_bytes) >= 6 and
                             received_bytes[0:2] == self.handler.ack and
                             received_bytes[2:4] == self.handler.header and
                             received_bytes[4] in range(0xC4, 0xC8) and
-                            self.handler.msg_done in received_bytes[5:-1])
-
+                            self.handler.msg_done in received_bytes[5:-1] and
+                            len(received_bytes) >= received_bytes.find(self.handler.msg_done) + len(self.handler.msg_done) + 1 and
+                            received_msg.get('is_valid_type', False))
                 logging.info(f"Received reply {i}: {received_bytes.hex().upper()}")
                 self.handler.send_ack()
+                
+                # --- RESTORED LOGIC BLOCK ---
                 if is_valid:
-                  payload_int = int.from_bytes(received_msg['payload'], byteorder='big')
-                  channel = next((c for c in self.channels if c.id_high == id_high and c.id_low == id_low), None)
-                  payload_value = payload_int * (channel.multiplier if channel else 1)
-                  self.data.append({'payload': payload_value})
+                    payload_int = int.from_bytes(received_msg['payload'], byteorder='big')
+                    channel = next((c for c in self.channels if c.id_high == id_high and c.id_low == id_low), None)
+                    channel_id = channel.channel_id if channel else 0
+                    channel_name = channel.channel_name if channel else "Unknown"
+                    unit = channel.unit if channel else "N/A"
+                    multiplier = channel.multiplier if channel else 1
+                    payload_value = payload_int * multiplier
+                
+                    # For UDP message: Reservoir Vacuum Level is -1000 + percentage
+                    if channel_id == 14:
+                        udp_payload = int(-1000 + payload_value)
+                        payload_formatted = f"{udp_payload}"
+                        unit = "mbar"
+                    elif multiplier < 1:
+                        payload_formatted = f"{payload_value:.2f}"
+                        udp_payload = payload_formatted
+                    else:
+                        payload_formatted = int(payload_value)
+                        udp_payload = payload_formatted
+                
+                    logging.info(f"Reply {i} valid, channel_id: {channel_id}, channel: {channel_name}, payload: {payload_formatted}, unit: {unit}")
+                    self.data.append({
+                        'channel_id': channel_id,
+                        'channel_name': channel_name,
+                        'payload': udp_payload,
+                        'unit': unit
+                    })
+                # --- END OF RESTORED LOGIC ---
                 else:
                     logging.warning(f"Reply {i} invalid: {received_msg}")
                     break
@@ -88,8 +104,6 @@ class ParameterRequestManager:
             except KeyError as e:
                 logging.error(f"Key error in reply {i}: {e}. Aborting polling cycle.")
                 break
-        
-        return sync_error_detected
 
     async def run(self):
         """Runs the parameter request process in a continuous loop with robust error recovery."""
@@ -98,6 +112,8 @@ class ParameterRequestManager:
         while True:
             transport = None
             try:
+                enable_udp_send = False
+
                 logging.info("Attempting to establish serial connection...")
                 transport, self.handler = await serial_asyncio.create_serial_connection(
                     loop, lambda: PackageHandler(), self.port, baudrate=self.baudrate
@@ -112,34 +128,44 @@ class ParameterRequestManager:
                     self.handler.buffer.clear()
                     self.handler.message_queue = asyncio.Queue()
 
-                    sync_error = await self.send_parameter_requests()
-
-                    # --- NEW: Check the sync error flag after the poll is complete ---
-                    if sync_error:
-                        logging.warning("Counter sync error detected in cycle. Discarding data and restarting handshake.")
-                        break
+                    await self.send_parameter_requests()
 
                     if len(self.data) < 19:
                         logging.warning("Communication failed: Incomplete data set received. Restarting handshake.")
                         break
-
-                    payloads = [str(int(row['payload'])) for row in self.data]
+                    
+                    # MODIFIED: Simplified to str() to handle pre-formatted floats and integers
+                    payloads = [str(row['payload']) for row in self.data]
 
                     if payloads[0] != "8":
                         logging.warning(f"Invalid data: First payload is '{payloads[0]}', expected '8'. Restarting handshake.")
                         break
-
-                    message = "VAC;PUMP1;" + ";".join(payloads)
-                    logging.info(f"Successfully polled valid data packet: {message}")
                     
-                    file_path = r"C:\temp\UDPTest\UDP1.txt"
-                    try:
-                        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                        with open(file_path, 'a', encoding='utf-8') as f:
-                            f.write(message + "\n")
-                        logging.debug(f"Appended message to {file_path}")
-                    except OSError as e:
-                        logging.error(f"Failed to write to file: {e}")
+                    message_payloads = payloads[1:]
+                    message = "VAC;PUMP1;" + ";".join(message_payloads)
+                    
+                    logging.info(f"Successfully polled valid data packet (18 payloads): {message}")
+                    
+                    if enable_udp_send:
+                        try:
+                            udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                            server_address = ('mtsgwm3ux05ac02.emea.avnet.com', 4041)
+                            udp_socket.sendto(message.encode('utf-8'), server_address)
+                            logging.info(f"Sent UDP message to {server_address[0]}:{server_address[1]}")
+                            udp_socket.close()
+                        except socket.gaierror as e:
+                            logging.error(f"UDP hostname resolution failed: {e}")
+                        except OSError as e:
+                            logging.error(f"UDP send error: {e}")
+                    else:
+                        file_path = r"C:\temp\UDPTest\UDP1.txt"
+                        try:
+                            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                            with open(file_path, 'a', encoding='utf-8') as f:
+                                f.write(message + "\n")
+                            logging.debug(f"Appended message to {file_path}")
+                        except OSError as e:
+                            logging.error(f"Failed to write to file: {e}")
 
             except (serial_asyncio.serial.SerialException, OSError, ConnectionAbortedError) as e:
                 logging.error(f"Connection error: {e}. Retrying...")
@@ -151,4 +177,4 @@ class ParameterRequestManager:
                     transport.close()
                 transport = None
                 self.handler = None
-                await asyncio.sleep(10)
+                await asyncio.sleep(5)
